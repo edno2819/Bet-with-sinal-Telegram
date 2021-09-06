@@ -1,71 +1,67 @@
-from telegram import Telegram
-from punterplace import Punter
-from time import gmtime, strftime, sleep
-import sys
-from time import gmtime, strftime
-import function as func
+from libraries.tele_task import TelegramTask
+from libraries.punterplace import Punter
+from time import sleep
 from datetime import datetime
+import function as func
+import sys
 
 
+
+CONFIGS = func.consult_csv()
+CONFIGS['Apostar'] = bool(int(CONFIGS['Apostar']))
+CONFIGS['Visivel'] = bool(int(CONFIGS['Visivel']))
+SINAIS = []
 
 class Main():
 
     def __init__(self):
-        self.hedless=True#botar como False
         self.x=int(datetime.now().strftime('%d')) + 30*int(datetime.now().strftime('%m'))
+        self.hedless=True
+        self.fist=False
         self.login=0
         self.senha=0
-        self.fist=False
     
     def configs(self):
         self.new_login=False
-        
-        configs=func.consult_csv()
-        
-        self.login=configs['Login']
-        self.senha=configs['Senha']
-        self.hedless=bool(int(configs['Visivel']))
-        #self.canal=configs['Canal']
-        self.hedless = True if self.hedless==False else False
-        self.tele=Telegram(profiles=True, headless=True)
-        self.punter=Punter(headless=self.hedless)
+                
+        self.login = CONFIGS['Login']
+        self.senha = CONFIGS['Senha']
+        self.hedless = False if CONFIGS['Visivel'] else True
+        self.tele = TelegramTask(profiles=True)
+        self.punter = Punter(headless=self.hedless, apostar=CONFIGS['Apostar'])
 
     def start(self): 
         self.tele.open_telegram()
-        self.punter.open()
-        sleep(2)
+        self.punter.start()
+
         if not self.tele.open_canal_sinal('InPlayScanner_BOT'):
             func.salve_csv(f'\nErro no Open Canal telegram!')
-            return False
-
-        elif not self.tele.scroll_dowm():
-            func.salve_csv(f'\nErro no Open scroll dowm telegram!')
             return False
 
         elif not self.punter.login(self.login,self.senha):
             func.salve_csv(f'\nErro no Login Punter!')
             return False
-
-        else: return True
+            
+        return True
 
     def conect_new_telegram(self):
-        self.tele=Telegram(profiles=True, headless=False)
-        self.tele.open_telegram()
-        input('Esperando conexão! Após conectar, aperte ENTER!')
-        self.close()
+        self.tele_visi=TelegramTask(profiles=True, headless= False)
+        self.tele_visi.open_telegram()
+        input('Esperando conexão! Após conectar, Reinicie o programa!')
+        self.tele_visi.tele.close()
 
-    def get_telegram_sinal(self):
-        sinal=self.tele.get_menssagems()
+    def get_telegram_sinais(self):
+        sinais = self.tele.get_sinais()
 
-        try:
-            if not self.fist:
-                self.fist=sinal[-1]
+        if not self.fist:
+            self.fist = sinais[-1]
 
-            sinal=sinal[(sinal.index(self.fist)):][1:]
-        except:
-            pass
+        sinais = sinais[(sinais.index(self.fist)):][1:]
 
-        return sinal
+        if sinais!=[]:
+            self.fist = sinais[-1]
+        
+        return sinais
 
     def make_apost(self, sinal):
         self.punter.aba('Ao vivo')
@@ -79,10 +75,9 @@ class Main():
                 self.punter.home()
                 func.beep()
                 return
-        sleep(1) 
-
+                
         if self.punter.select_aposta(sinal['taxa'], f"{sinal['time']}x{sinal['time2']}") or self.punter.select_aposta(sinal['taxa'], f"{sinal['time']}x{sinal['time2']}"):
-            if self.punter.apostar(sinal['taxa'], f"{sinal['time']}x{sinal['time2']}"):
+            if self.punter.apostar():
                 func.salve_csv('Aposta feita!')
                 self.punter.home()
                 return
@@ -92,7 +87,7 @@ class Main():
         self.punter.home()    
 
     def close(self):
-        self.tele.close()
+        self.tele.tele.close()
         self.punter.close()
 
     def restart(self, x=3):
@@ -104,45 +99,55 @@ class Main():
                 return True
         return False
 
-
 bot = Main()
 bot.configs()
 
-if not func.check_profile():
-    bot.conect_new_telegram()
-
-sinais=[]
-
+def close():
+    try:
+        bot.close()
+    except:
+        bot.tele_visi.tele.close()
+    sys.exit()
 
 def execute():
+    if not func.check_profile():
+        bot.conect_new_telegram()
+        
+    print('Iniciando Bot')
     tent=0
+
     bot.restart()
     while True:
 
         if tent>=300:
-            tent=0
+            tent = 0
             bot.restart()
-            print('Restartou')
+            print('\nRestartou')
 
         sleep(3)
-        sinais_get=bot.get_telegram_sinal()
+        #try:
+        sinais_get = bot.get_telegram_sinais()
 
         for sinal in sinais_get:
             if sinal:
-                sinal=func.analise_sinal(sinal)
+                sinal = func.analise_sinal(sinal)
 
-                if sinal not in sinais and sinal!=False:
-                    hora=strftime("%d-%m %H:%M:%S", gmtime())
-
-                    func.salve_csv(f'\n{hora} -  Sinal recebido {sinal}')
+                if sinal not in SINAIS and sinal!=False:
+                    aviso = f'\n{datetime.now().strftime("%H:%M:%S %d/%m/%Y")} -  Sinal recebido {sinal}'
+                    func.salve_csv(aviso)
+                    print(aviso)
                     
                     bot.make_apost(sinal)
                 
-                    sinais.append(sinal)
+                    SINAIS.append(sinal)
+        # except:
+        #     func.salve_csv(traceback.format_exc())
+        #     bot.restart()
 
-        sleep(2)
+  
+
+
         tent+=1
+    
 
-
-execute()
 

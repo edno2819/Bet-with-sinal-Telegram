@@ -18,8 +18,8 @@ def analise_sinal(sinal):
     if 'over top' not in sinal:
         return False
 
-    sinal_=sinal.split('\n')
-    sinal_=sinal_[sinal_.index('ALERTA [ over top ]'):]
+    sinal_= sinal.split('\n')
+    sinal_= sinal_[sinal_.index('ALERTA [ over top ]'):]
     dic={}
 
     for c in range(len(sinal_)):
@@ -35,13 +35,16 @@ def analise_sinal(sinal):
     except:
         print('Erro na captura do Sinal!')
 
-    dic['hora']=sinal_[3]
+    dic['hora'] = sinal_[3]
 
     return dic
 
-def salve_csv(ask):
+def salve_csv(ask, space=True):
     file=open('historico.txt', mode='a')
-    file.write(f'\n{ask}:')
+    if space:
+        file.write(f'\n{ask}:')
+    else:
+        file.write(f'{ask}:')
     file.close()    
 
 def consult_csv():
