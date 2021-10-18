@@ -2,8 +2,10 @@ from libraries.tele_task import TelegramTask
 from libraries.punterplace import Punter
 from time import sleep
 from datetime import datetime
+import traceback
 import function as func
 import sys
+import time
 
 
 
@@ -86,6 +88,13 @@ class Main():
         func.beep()
         self.punter.home()    
 
+    def error(self):
+        self.punter.driver.screenshot(f'log\\punter_{time.time()}.png')
+        self.tele.tele.driver.screenshot(f'log\\tele_{time.time()}.png')
+        print('Restartando_')
+        self.restart()
+
+
     def close(self):
         self.tele.tele.close()
         self.punter.close()
@@ -125,27 +134,24 @@ def execute():
             print('\nRestartou')
 
         sleep(3)
-        #try:
-        sinais_get = bot.get_telegram_sinais()
+        try:
+            sinais_get = bot.get_telegram_sinais()
 
-        for sinal in sinais_get:
-            if sinal:
-                sinal = func.analise_sinal(sinal)
+            for sinal in sinais_get:
+                if sinal:
+                    sinal = func.analise_sinal(sinal)
 
-                if sinal not in SINAIS and sinal!=False:
-                    aviso = f'\n{datetime.now().strftime("%H:%M:%S %d/%m/%Y")} -  Sinal recebido {sinal}'
-                    func.salve_csv(aviso)
-                    print(aviso)
+                    if sinal not in SINAIS and sinal!=False:
+                        aviso = f'\n{datetime.now().strftime("%H:%M:%S %d/%m/%Y")} -  Sinal recebido {sinal}'
+                        func.salve_csv(aviso)
+                        print(aviso)
+                        
+                        bot.make_apost(sinal)
                     
-                    bot.make_apost(sinal)
-                
-                    SINAIS.append(sinal)
-        # except:
-        #     func.salve_csv(traceback.format_exc())
-        #     bot.restart()
-
-  
-
+                        SINAIS.append(sinal)
+        except:
+            func.salve_csv(traceback.format_exc())
+            bot.error()
 
         tent+=1
     

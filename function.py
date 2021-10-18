@@ -57,9 +57,12 @@ def consult_csv():
     return configs
 
 def beep():
-    frequency = 1000  # Set Frequency To 2500 Hertz
-    duration = 1000  # Set Duration To 1000 ms == 1 second
-    winsound.Beep(frequency, duration)
+    try:
+        frequency = 1000  # Set Frequency To 2500 Hertz
+        duration = 1000  # Set Duration To 1000 ms == 1 second
+        winsound.Beep(frequency, duration)
+    except:
+        pass
 
 def trys(func1, func2):
     try:
